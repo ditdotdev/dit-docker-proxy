@@ -51,15 +51,25 @@ func getErrorString(err error) string {
 }
 
 /*
- * Converts a docker volume name (repo/vol) to a (repo, volume) tuple for use with the titan API.
+ * Converts a docker volume name (repo_vol) to a (repo, volume) tuple for use with the titan API.
+ * Uses underscore format for universal compatibility, with backward compatibility for existing slash format.
  */
 func parseVolumeName(volumeName string) (string, string, error) {
-	re := regexp.MustCompile(`^([^/]+)/([^/]+)$`)
+	// Try underscore format first (new standard)
+	re := regexp.MustCompile(`^([^_]+)_([^_]+)$`)
 	match := re.FindStringSubmatch(volumeName)
-	if len(match) != 3 {
-		return "", "", errors.New("volume name must be of the form <repository>/<volume>")
+	if len(match) == 3 {
+		return match[1], match[2], nil
 	}
-	return match[1], match[2], nil
+	
+	// Fall back to slash format for backward compatibility
+	re = regexp.MustCompile(`^([^/]+)/([^/]+)$`)
+	match = re.FindStringSubmatch(volumeName)
+	if len(match) == 3 {
+		return match[1], match[2], nil
+	}
+	
+	return "", "", errors.New("volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
 /*
@@ -76,10 +86,11 @@ func standardResponse(err error) VolumeResponse {
 /*
  * Converts from a Titan volume to a Docker volume. The main difference is that the repository name is part of the
  * volume name. The mountpoint is also pulled out of the properties to a first class response.
+ * Uses underscore format for universal compatibility across all platforms.
  */
 func convertVolume(repo string, vol titan.Volume) Volume {
 	return Volume{
-		Name:       fmt.Sprintf("%s/%s", repo, vol.Name),
+		Name:       fmt.Sprintf("%s_%s", repo, vol.Name),
 		Mountpoint: vol.Config["mountpoint"].(string),
 		Status:     map[string]string{},
 	}
