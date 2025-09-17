@@ -57,10 +57,10 @@ func TestListVolumes(t *testing.T) {
 	resp := f.ListVolumes()
 	if assert.Empty(t, resp.Err) &&
 		assert.Equal(t, len(resp.Volumes), 2) {
-		assert.Equal(t, resp.Volumes[0].Name, "foo/v0")
+		assert.Equal(t, resp.Volumes[0].Name, "foo_v0")
 		assert.Equal(t, resp.Volumes[0].Mountpoint, "/v0")
 		assert.Equal(t, len(resp.Volumes[0].Status), 0)
-		assert.Equal(t, resp.Volumes[1].Name, "foo/v1")
+		assert.Equal(t, resp.Volumes[1].Name, "foo_v1")
 		assert.Equal(t, resp.Volumes[1].Mountpoint, "/v1")
 		assert.Equal(t, len(resp.Volumes[1].Status), 0)
 	}
@@ -109,7 +109,7 @@ func TestGetVolume(t *testing.T) {
 
 	resp := f.GetVolume(VolumeRequest{Name: "foo/vol"})
 	if assert.Empty(t, resp.Err) {
-		assert.Equal(t, resp.Volume.Name, "foo/vol")
+		assert.Equal(t, resp.Volume.Name, "foo_vol")
 		assert.Equal(t, resp.Volume.Mountpoint, "/vol")
 	}
 }
@@ -118,7 +118,7 @@ func TestGetVolumeBadName(t *testing.T) {
 	f := New("localhost", 5001)
 
 	resp := f.GetVolume(VolumeRequest{Name: "foo"})
-	assert.Equal(t, resp.Err, "volume name must be of the form <repository>/<volume>")
+	assert.Equal(t, resp.Err, "volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
 func TestGetVolumeError(t *testing.T) {
@@ -202,7 +202,7 @@ func TestCreateVolumeBadName(t *testing.T) {
 	f := New("localhost", 5001)
 
 	resp := f.CreateVolume(CreateVolumeRequest{Name: "foo", Opts: map[string]interface{}{"a": "b"}})
-	assert.Equal(t, resp.Err, "volume name must be of the form <repository>/<volume>")
+	assert.Equal(t, resp.Err, "volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
 func TestCreateVolumeError(t *testing.T) {
@@ -237,7 +237,7 @@ func TestRemoveVolumeBadName(t *testing.T) {
 	f := New("localhost", 5001)
 
 	resp := f.RemoveVolume(VolumeRequest{Name: "foo"})
-	assert.Equal(t, resp.Err, "volume name must be of the form <repository>/<volume>")
+	assert.Equal(t, resp.Err, "volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
 func TestRemoveVolumeError(t *testing.T) {
@@ -278,7 +278,7 @@ func TestMountVolumeBadName(t *testing.T) {
 	f := New("localhost", 5001)
 
 	resp := f.MountVolume(MountVolumeRequest{Name: "foo"})
-	assert.Equal(t, resp.Err, "volume name must be of the form <repository>/<volume>")
+	assert.Equal(t, resp.Err, "volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
 func TestMountVolumeError(t *testing.T) {
@@ -320,7 +320,7 @@ func TestUnmountVolumeBadName(t *testing.T) {
 	f := New("localhost", 5001)
 
 	resp := f.UnmountVolume(MountVolumeRequest{Name: "foo"})
-	assert.Equal(t, resp.Err, "volume name must be of the form <repository>/<volume>")
+	assert.Equal(t, resp.Err, "volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
 func TestUnmountVolumeError(t *testing.T) {
