@@ -17,8 +17,11 @@ on:
 jobs:
   update_draft_release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
-      - uses: toolmantim/release-drafter@v5.5.0
+      - uses: release-drafter/release-drafter@v6
         id: draft_release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

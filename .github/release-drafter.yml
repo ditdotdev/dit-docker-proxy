@@ -1,4 +1,41 @@
+#
+# Copyright The Titan Project Contributors.
+#
+
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+
+version-resolver:
+  major:
+    labels:
+      - 'breaking-change'
+  minor:
+    labels:
+      - 'feature'
+  patch:
+    labels:
+      - 'bug'
+      - 'enhancement'
+      - 'documentation'
+  default: patch
+
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+  - title: '🧰 Maintenance'
+    labels:
+      - 'maintenance'
+      - 'enhancement'
+      - 'documentation'
+
 template: |
+  ## Changes
+
+  $CHANGESlate: |
   ## What’s Changed
 
   $CHANGES
