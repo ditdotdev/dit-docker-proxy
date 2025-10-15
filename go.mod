@@ -1,8 +1,8 @@
-module github.com/titan-data/titan-docker-proxy
+module github.com/datadatdat/datadatdat-docker-proxy
 
 require (
 	github.com/stretchr/testify v1.11.1
-	github.com/titan-data/titan-client-go v0.1.1
+	github.com/datadatdat/datadatdat-client-go v1.0.0
 )
 
 require (
