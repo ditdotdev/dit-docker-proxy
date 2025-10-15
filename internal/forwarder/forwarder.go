@@ -1,5 +1,5 @@
 /*
- * Copyright The Datadatdat Project Contributors.
+ * Copyright Datadatdat.
  */
 
 package forwarder
@@ -8,14 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	Datadatdat "github.com/datadatdat/Datadatdat-client-go"
+	datadatdat "github.com/datadatdat/datadatdat-client-go"
 	"net/http"
 	"regexp"
 )
 
 /*
  * The forwarder class is responsible for taking docker requests as input, and making the appropriate calls to an
- * instance of Datadatdat-server. The inputs to these functions are all structures defined in this package. The
+ * instance of datadatdat-server. The inputs to these functions are all structures defined in this package. The
  * responsibility of listening on the appropriate docker socket, marshalling to and from JSON, etc rests with
  * other portions of the package.
  */
@@ -38,7 +38,7 @@ type forwarder struct {
 }
 
 /*
- * Converts an error object into an "Err" string to return to consumers. If this is a Datadatdat-server API error, then
+ * Converts an error object into an "Err" string to return to consumers. If this is a datadatdat-server API error, then
  * we return the message field. Otherwise, we return the default error string.
  */
 func getErrorString(err error) string {

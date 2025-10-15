@@ -1,5 +1,5 @@
 /*
- * Copyright The Datadatdat Project Contributors.
+ * Copyright Datadatdat.
  */
 
 package main
@@ -7,8 +7,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/datadatdat/Datadatdat-docker-proxy/internal/forwarder"
-	"github.com/datadatdat/Datadatdat-docker-proxy/internal/listener"
+	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
+	"github.com/datadatdat/datadatdat-docker-proxy/internal/listener"
 	"os"
 )
 
