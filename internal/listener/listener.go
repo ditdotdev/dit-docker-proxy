@@ -6,11 +6,12 @@ package listener
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"reflect"
+
+	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
 )
 
 /*
@@ -47,12 +48,14 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	funcValue := reflect.ValueOf(h.fun)
 	if h.req != nil {
-		body, err := ioutil.ReadAll(r.Body)
+		body, readErr := ioutil.ReadAll(r.Body)
 		if h.listen.log {
 			fmt.Printf("%s %-24s -> %s", r.Method, r.RequestURI, string(body))
 		}
-		if err == nil {
+		if readErr == nil {
 			err = json.Unmarshal(body, h.req)
+		} else {
+			err = readErr
 		}
 
 		response = funcValue.Call([]reflect.Value{reflect.ValueOf(h.req).Elem()})
@@ -87,12 +90,12 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
-func create(forward forwarder.Forwarder, path string) listener {
+func create(forward forwarder.Forwarder, path string) *listener {
 	l := &listener{
 		forw: forward,
 		path: path,
 		mux:  http.NewServeMux(),
-		log: false,
+		log:  false,
 	}
 
 	l.mux.Handle("/Plugin.Activate", handler{l, nil, forward.PluginActivate})
@@ -105,10 +108,10 @@ func create(forward forwarder.Forwarder, path string) listener {
 	l.mux.Handle("/VolumeDriver.Remove", handler{l, &forwarder.VolumeRequest{}, forward.RemoveVolume})
 	l.mux.Handle("/VolumeDriver.Unmount", handler{l, &forwarder.MountVolumeRequest{}, forward.UnmountVolume})
 
-	return *l
+	return l
 }
 
-func (l listener) Listen() error {
+func (l *listener) Listen() error {
 	listen, err := net.Listen("unix", l.path)
 	if err != nil {
 		return fmt.Errorf("listen failed on %s: %w", l.path, err)
@@ -117,7 +120,7 @@ func (l listener) Listen() error {
 	return http.Serve(listen, l.mux)
 }
 
-func (l listener) SetLogging(enabled bool) {
+func (l *listener) SetLogging(enabled bool) {
 	l.log = enabled
 }
 
