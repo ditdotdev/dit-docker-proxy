@@ -1,12 +1,12 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright The Datadatdat Project Contributors.
  */
 package listener
 
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/titan-data/titan-docker-proxy/internal/forwarder"
+	"github.com/datadatdat/Datadatdat-docker-proxy/internal/forwarder"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -15,7 +15,7 @@ import (
 
 /*
  * The listener is responsible for listening on a Unix Domain Socket for docker requests, marshaling data to and from
- * JSON, and invoking the appropriate methods of the forwarder to then make calls to titan-server. Because this is so
+ * JSON, and invoking the appropriate methods of the forwarder to then make calls to Datadatdat-server. Because this is so
  * generic, we are able to implement a generic interposition layer and use reflection to do all the work.
  */
 

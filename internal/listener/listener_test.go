@@ -1,5 +1,5 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright The Datadatdat Project Contributors.
  */
 
 package listener
@@ -7,7 +7,7 @@ package listener
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/titan-data/titan-docker-proxy/internal/forwarder"
+	"github.com/datadatdat/Datadatdat-docker-proxy/internal/forwarder"
 	"net/http"
 	"net/http/httptest"
 	"strings"

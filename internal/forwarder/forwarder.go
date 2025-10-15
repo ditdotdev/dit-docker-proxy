@@ -1,5 +1,5 @@
 /*
- * Copyright The Titan Project Contributors.
+ * Copyright The Datadatdat Project Contributors.
  */
 
 package forwarder
@@ -8,14 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	titan "github.com/titan-data/titan-client-go"
+	Datadatdat "github.com/datadatdat/Datadatdat-client-go"
 	"net/http"
 	"regexp"
 )
 
 /*
  * The forwarder class is responsible for taking docker requests as input, and making the appropriate calls to an
- * instance of titan-server. The inputs to these functions are all structures defined in this package. The
+ * instance of Datadatdat-server. The inputs to these functions are all structures defined in this package. The
  * responsibility of listening on the appropriate docker socket, marshalling to and from JSON, etc rests with
  * other portions of the package.
  */
@@ -33,17 +33,17 @@ type Forwarder interface {
 }
 
 type forwarder struct {
-	client *titan.APIClient
+	client *Datadatdat.APIClient
 	ctx    context.Context
 }
 
 /*
- * Converts an error object into an "Err" string to return to consumers. If this is a titan-server API error, then
+ * Converts an error object into an "Err" string to return to consumers. If this is a Datadatdat-server API error, then
  * we return the message field. Otherwise, we return the default error string.
  */
 func getErrorString(err error) string {
-	if openApiErr, ok := err.(titan.GenericOpenAPIError); ok {
-		if apiErr, ok := openApiErr.Model().(titan.ApiError); ok {
+	if openApiErr, ok := err.(Datadatdat.GenericOpenAPIError); ok {
+		if apiErr, ok := openApiErr.Model().(Datadatdat.ApiError); ok {
 			return apiErr.Message
 		}
 	}
@@ -51,7 +51,7 @@ func getErrorString(err error) string {
 }
 
 /*
- * Converts a docker volume name (repo_vol) to a (repo, volume) tuple for use with the titan API.
+ * Converts a docker volume name (repo_vol) to a (repo, volume) tuple for use with the Datadatdat API.
  * Uses underscore format for universal compatibility, with backward compatibility for existing slash format.
  */
 func parseVolumeName(volumeName string) (string, string, error) {
@@ -84,11 +84,11 @@ func standardResponse(err error) VolumeResponse {
 }
 
 /*
- * Converts from a Titan volume to a Docker volume. The main difference is that the repository name is part of the
+ * Converts from a Datadatdat volume to a Docker volume. The main difference is that the repository name is part of the
  * volume name. The mountpoint is also pulled out of the properties to a first class response.
  * Uses underscore format for universal compatibility across all platforms.
  */
-func convertVolume(repo string, vol titan.Volume) Volume {
+func convertVolume(repo string, vol Datadatdat.Volume) Volume {
 	return Volume{
 		Name:       fmt.Sprintf("%s_%s", repo, vol.Name),
 		Mountpoint: vol.Config["mountpoint"].(string),
@@ -189,7 +189,7 @@ func (p forwarder) CreateVolume(request CreateVolumeRequest) VolumeResponse {
 		if request.Opts != nil {
 			properties = request.Opts
 		}
-		vol := titan.Volume{
+		vol := Datadatdat.Volume{
 			Name:       volumeName,
 			Properties: properties,
 		}
@@ -201,7 +201,7 @@ func (p forwarder) CreateVolume(request CreateVolumeRequest) VolumeResponse {
 /*
  * /VolumeDriver.Remove
  *
- * Delete a volume. This simply parses the name to the native titan form, and marshals any errors in the process.
+ * Delete a volume. This simply parses the name to the native Datadatdat form, and marshals any errors in the process.
  */
 func (p forwarder) RemoveVolume(request VolumeRequest) VolumeResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
@@ -216,12 +216,12 @@ func (p forwarder) RemoveVolume(request VolumeRequest) VolumeResponse {
 /*
  * /VolumeDriver.Mount
  *
- * Mount a volume. This is equivalent to activating a titan volume.
+ * Mount a volume. This is equivalent to activating a Datadatdat volume.
  */
 func (p forwarder) MountVolume(request MountVolumeRequest) GetPathResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
 	if err == nil {
-		var vol titan.Volume
+		var vol Datadatdat.Volume
 		vol, _, err = p.client.VolumesApi.GetVolume(p.ctx, repoName, volumeName)
 		if err == nil {
 			_, err = p.client.VolumesApi.ActivateVolume(p.ctx, repoName, volumeName)
@@ -237,7 +237,7 @@ func (p forwarder) MountVolume(request MountVolumeRequest) GetPathResponse {
 /*
  * /VolumeDriver.Unmount
  *
- * Unmount a volume. This is equivalent to deactivating a titan volume.
+ * Unmount a volume. This is equivalent to deactivating a Datadatdat volume.
  */
 func (p forwarder) UnmountVolume(request MountVolumeRequest) VolumeResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
@@ -251,9 +251,9 @@ func (p forwarder) UnmountVolume(request MountVolumeRequest) VolumeResponse {
  * Public forwarder constructor. Takes a host ("localhost") and port (5001) to pass to the client.
  */
 func New(host string, port int) Forwarder {
-	config := titan.NewConfiguration()
+	config := Datadatdat.NewConfiguration()
 	config.Host = fmt.Sprintf("%s:%d", host, port)
-	client := titan.NewAPIClient(config)
+	client := Datadatdat.NewAPIClient(config)
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
@@ -261,13 +261,13 @@ func New(host string, port int) Forwarder {
 }
 
 /*
- * For use in testing, this allows the test to pass a (mock) HTTP client to the titan client in order to facilitate
+ * For use in testing, this allows the test to pass a (mock) HTTP client to the Datadatdat client in order to facilitate
  * testing.
  */
 func NewClient(httpClient *http.Client) Forwarder {
-	config := titan.NewConfiguration()
+	config := Datadatdat.NewConfiguration()
 	config.HTTPClient = httpClient
-	client := titan.NewAPIClient(config)
+	client := Datadatdat.NewAPIClient(config)
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
