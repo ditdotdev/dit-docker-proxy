@@ -1,7 +1,7 @@
 # About this Project
 
 This project provides a daemon that will listen on a Docker plugin socket and forward requests to
-Datadatdat-server. This enables the Datadatdat-server API to remain independent of any docker-isms.
+datadatdat-server. This enables the datadatdat-server API to remain independent of any docker-isms.
 
 ## Contributing
 

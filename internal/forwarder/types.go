@@ -1,5 +1,5 @@
 /*
- * Copyright The Datadatdat Project Contributors.
+ * Copyright Datadatdat.
  */
 
 package forwarder
