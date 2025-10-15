@@ -35,7 +35,4 @@ categories:
 template: |
   ## Changes
 
-  $CHANGESlate: |
-  ## What’s Changed
-
   $CHANGES
