@@ -33,7 +33,7 @@ type Forwarder interface {
 }
 
 type forwarder struct {
-	client *Datadatdat.APIClient
+	client *datadatdat.APIClient
 	ctx    context.Context
 }
 
@@ -42,8 +42,8 @@ type forwarder struct {
  * we return the message field. Otherwise, we return the default error string.
  */
 func getErrorString(err error) string {
-	if openApiErr, ok := err.(Datadatdat.GenericOpenAPIError); ok {
-		if apiErr, ok := openApiErr.Model().(Datadatdat.ApiError); ok {
+	if openApiErr, ok := err.(datadatdat.GenericOpenAPIError); ok {
+		if apiErr, ok := openApiErr.Model().(datadatdat.ApiError); ok {
 			return apiErr.Message
 		}
 	}
@@ -88,7 +88,7 @@ func standardResponse(err error) VolumeResponse {
  * volume name. The mountpoint is also pulled out of the properties to a first class response.
  * Uses underscore format for universal compatibility across all platforms.
  */
-func convertVolume(repo string, vol Datadatdat.Volume) Volume {
+func convertVolume(repo string, vol datadatdat.Volume) Volume {
 	return Volume{
 		Name:       fmt.Sprintf("%s_%s", repo, vol.Name),
 		Mountpoint: vol.Config["mountpoint"].(string),
@@ -189,7 +189,7 @@ func (p forwarder) CreateVolume(request CreateVolumeRequest) VolumeResponse {
 		if request.Opts != nil {
 			properties = request.Opts
 		}
-		vol := Datadatdat.Volume{
+		vol := datadatdat.Volume{
 			Name:       volumeName,
 			Properties: properties,
 		}
@@ -221,7 +221,7 @@ func (p forwarder) RemoveVolume(request VolumeRequest) VolumeResponse {
 func (p forwarder) MountVolume(request MountVolumeRequest) GetPathResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
 	if err == nil {
-		var vol Datadatdat.Volume
+		var vol datadatdat.Volume
 		vol, _, err = p.client.VolumesApi.GetVolume(p.ctx, repoName, volumeName)
 		if err == nil {
 			_, err = p.client.VolumesApi.ActivateVolume(p.ctx, repoName, volumeName)
@@ -251,9 +251,9 @@ func (p forwarder) UnmountVolume(request MountVolumeRequest) VolumeResponse {
  * Public forwarder constructor. Takes a host ("localhost") and port (5001) to pass to the client.
  */
 func New(host string, port int) Forwarder {
-	config := Datadatdat.NewConfiguration()
+	config := datadatdat.NewConfiguration()
 	config.Host = fmt.Sprintf("%s:%d", host, port)
-	client := Datadatdat.NewAPIClient(config)
+	client := datadatdat.NewAPIClient(config)
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
@@ -265,9 +265,9 @@ func New(host string, port int) Forwarder {
  * testing.
  */
 func NewClient(httpClient *http.Client) Forwarder {
-	config := Datadatdat.NewConfiguration()
+	config := datadatdat.NewConfiguration()
 	config.HTTPClient = httpClient
-	client := Datadatdat.NewAPIClient(config)
+	client := datadatdat.NewAPIClient(config)
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
