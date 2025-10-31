@@ -43,7 +43,7 @@ jobs:
             echo "No draft release found for tag $TAG_NAME, creating one..."
             RESPONSE=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
               -X POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
-              -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$TAG_NAME\",\"body\":\"Release $TAG_NAME\",\"draft\":true}")
+              -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$TAG_NAME\",\"body\":\"Release $TAG_NAME\",\"draft\":false}")
 
             UPLOAD_URL=$(echo "$RESPONSE" | jq -rc '.upload_url')
             echo "Created draft release with upload_url: $UPLOAD_URL"
