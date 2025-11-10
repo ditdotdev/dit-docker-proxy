@@ -20,6 +20,17 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25.1'
+      - name: Configure Git for private modules
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.GO_MODULES_TOKEN }}@github.com/".insteadOf "https://github.com/"
+          git config --global credential.helper store
+          echo "https://x-access-token:${{ secrets.GO_MODULES_TOKEN }}@github.com" > ~/.git-credentials
+      - name: Configure Go for private modules
+        run: |
+          go env -w GOPRIVATE=github.com/datadatdat/*
+          go env -w GOPROXY=direct
+        env:
+          GOPRIVATE: github.com/datadatdat/*
       - name: Build
         run: go build -v ./cmd/docker-volume-proxy
       - name: Test
