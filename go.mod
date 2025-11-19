@@ -1,7 +1,7 @@
 module github.com/datadatdat/datadatdat-docker-proxy
 
 require (
-	github.com/datadatdat/datadatdat-client-go v1.4.0
+	github.com/datadatdat/datadatdat-client-go v1.5.0
 	github.com/stretchr/testify v1.11.1
 )
 
