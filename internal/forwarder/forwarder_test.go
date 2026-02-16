@@ -114,6 +114,22 @@ func TestGetVolume(t *testing.T) {
 	}
 }
 
+func TestGetVolumeUnderscoreFormat(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		assert.Equal(t, r.RequestURI, "/v1/repositories/foo/volumes/vol")
+		w.Write([]byte("{\"name\":\"vol\",\"config\":{\"mountpoint\":\"/vol\"}}"))
+	})
+	f, teardown := testForwarder(h)
+	defer teardown()
+
+	resp := f.GetVolume(VolumeRequest{Name: "foo_vol"})
+	if assert.Empty(t, resp.Err) {
+		assert.Equal(t, resp.Volume.Name, "foo_vol")
+		assert.Equal(t, resp.Volume.Mountpoint, "/vol")
+	}
+}
+
 func TestGetVolumeBadName(t *testing.T) {
 	f := New("localhost", 5001)
 
