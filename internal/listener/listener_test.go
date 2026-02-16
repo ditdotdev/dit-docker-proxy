@@ -5,14 +5,28 @@
 package listener
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
-	"net/http"
-	"net/http/httptest"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+
+	"net/http"
+	"net/http/httptest"
+
+	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
+
+// errorReader is a reader that always returns an error, used to test ReadAll failure paths.
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("simulated read error")
+}
 
 type MockForwarder struct {
 	mock.Mock
@@ -191,4 +205,100 @@ func TestUnmountVolume(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(t, "{\"Err\":\"\"}", rr.Body.String())
 	f.AssertExpectations(t)
+}
+
+func TestNew(t *testing.T) {
+	f := new(MockForwarder)
+	l := New(f, "/tmp/test.sock")
+	assert.NotNil(t, l)
+}
+
+func TestSetLogging(t *testing.T) {
+	f := new(MockForwarder)
+	l := New(f, "/tmp/test.sock")
+	// SetLogging should not panic and should toggle the log field
+	l.SetLogging(true)
+	l.SetLogging(false)
+}
+
+func TestListenErrorBadPath(t *testing.T) {
+	f := new(MockForwarder)
+	// Use a path that is guaranteed to fail on any OS
+	l := New(f, "/nonexistent/deeply/nested/dir/test.sock")
+	err := l.Listen()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "listen failed on")
+}
+
+func TestListenSuccessAndServe(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix domain sockets not reliably available on Windows")
+	}
+
+	f := new(MockForwarder)
+	f.On("PluginActivate").Return(forwarder.PluginDescription{Implements: []string{"VolumeDriver"}})
+
+	sockDir, err := os.MkdirTemp("", "listener-test")
+	assert.NoError(t, err)
+	defer os.RemoveAll(sockDir)
+
+	sockPath := filepath.Join(sockDir, "test.sock")
+	l := New(f, sockPath)
+
+	// Run Listen in a goroutine since it blocks
+	go func() {
+		_ = l.Listen()
+	}()
+
+	// Wait for the socket file to appear, confirming Listen() bound successfully
+	assert.Eventually(t, func() bool {
+		_, statErr := os.Stat(sockPath)
+		return statErr == nil
+	}, 2*1e9, 50*1e6, "socket file did not appear")
+}
+
+func TestServeHTTPWithLoggingEnabled(t *testing.T) {
+	f := new(MockForwarder)
+	f.On("CreateVolume", mock.Anything).Return(forwarder.VolumeResponse{})
+	l := create(f, "/socket")
+	l.log = true
+
+	body := "{\"Name\":\"foo/vol\",\"Opts\":{}}"
+	req, _ := http.NewRequest("POST", "/VolumeDriver.Create", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+	handler, _ := l.mux.Handler(req)
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, "{\"Err\":\"\"}", rr.Body.String())
+	f.AssertExpectations(t)
+}
+
+func TestServeHTTPNoBodyWithLoggingEnabled(t *testing.T) {
+	f := new(MockForwarder)
+	f.On("ListVolumes").Return(forwarder.ListVolumeResponse{
+		Volumes: []forwarder.Volume{},
+	})
+	l := create(f, "/socket")
+	l.log = true
+
+	req, _ := http.NewRequest("POST", "/VolumeDriver.List", nil)
+	rr := httptest.NewRecorder()
+	handler, _ := l.mux.Handler(req)
+	handler.ServeHTTP(rr, req)
+	assert.Equal(t, "{\"Err\":\"\",\"Volumes\":[]}", rr.Body.String())
+	f.AssertExpectations(t)
+}
+
+func TestServeHTTPReadAllError(t *testing.T) {
+	f := new(MockForwarder)
+	// The forwarder is still called even when ReadAll fails, because the current code
+	// unconditionally calls funcValue.Call after setting err. The response is then
+	// overridden by the error path since err != nil.
+	f.On("CreateVolume", mock.Anything).Return(forwarder.VolumeResponse{})
+	l := create(f, "/socket")
+
+	req, _ := http.NewRequest("POST", "/VolumeDriver.Create", io.NopCloser(&errorReader{}))
+	rr := httptest.NewRecorder()
+	handler, _ := l.mux.Handler(req)
+	handler.ServeHTTP(rr, req)
+	assert.Contains(t, rr.Body.String(), "simulated read error")
 }
