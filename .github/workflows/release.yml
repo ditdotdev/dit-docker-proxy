@@ -3,7 +3,7 @@
 #
 
 #
-# When a tag is pushed, build and upload the binary to GitHub releases and S3 Maven bucket.
+# When a tag is pushed, build and upload the binary to GitHub releases.
 #
 name: Release
 
@@ -70,9 +70,3 @@ jobs:
           asset_path: ./docker-volume-proxy
           asset_name: docker-volume-proxy
           asset_content_type: application/octet-stream
-      - name: Upload Binary to S3 Maven Bucket
-        run: |
-          aws s3 cp ./docker-volume-proxy s3://${{ secrets.MAVEN_BUCKET }}/datadatdat-docker-proxy/docker-volume-proxy
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
