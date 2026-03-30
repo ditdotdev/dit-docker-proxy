@@ -1,7 +1,7 @@
 github.com/antihax/optional v1.0.0 h1:xK2lYat7ZLaVVcIuj82J8kIro4V6kDe0AUDFboUCwcg=
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
-github.com/datadatdat/datadatdat-client-go v1.7.2 h1:hzDJzpUFC34FZGU3MmrIz00hTJY0XDF/i1QqVaYfMjY=
-github.com/datadatdat/datadatdat-client-go v1.7.2/go.mod h1:+GzsAcFJbUbO6SyLk9ALk3iycqVcQb6os8TNFNehfl8=
+github.com/datadatdat/datadatdat-client-go v1.8.0 h1:AMvhbfJms23OYVrKXeR4xBD9orCTzZAWKDe+N1WTpqY=
+github.com/datadatdat/datadatdat-client-go v1.8.0/go.mod h1:+GzsAcFJbUbO6SyLk9ALk3iycqVcQb6os8TNFNehfl8=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
