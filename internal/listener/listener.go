@@ -87,7 +87,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if h.listen.log {
 		fmt.Printf("%s %-24s <- %s\n", r.Method, r.RequestURI, string(body))
 	}
-	w.Write(body)
+	_, _ = w.Write(body) // #nosec G104 -- response body already built; nothing to do if write to local Docker daemon fails
 }
 
 func create(forward forwarder.Forwarder, path string) *listener {
@@ -117,7 +117,7 @@ func (l *listener) Listen() error {
 		return fmt.Errorf("listen failed on %s: %w", l.path, err)
 	}
 
-	return http.Serve(listen, l.mux)
+	return http.Serve(listen, l.mux) // #nosec G114 -- Unix-socket listener for local Docker daemon volume-driver protocol; HTTP timeouts would break long-running mount operations
 }
 
 func (l *listener) SetLogging(enabled bool) {
