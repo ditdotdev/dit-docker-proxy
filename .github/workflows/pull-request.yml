@@ -35,3 +35,7 @@ jobs:
         run: go build -v ./cmd/docker-volume-proxy
       - name: Test
         run: go test -v ./...
+      - name: Run Go security scanner (gosec)
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          gosec ./...
