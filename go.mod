@@ -1,12 +1,11 @@
 module github.com/datadatdat/datadatdat-docker-proxy
 
 require (
-	github.com/datadatdat/datadatdat-client-go v1.9.0
+	github.com/datadatdat/datadatdat-client-go v1.10.0
 	github.com/stretchr/testify v1.11.1
 )
 
 require (
-	github.com/antihax/optional v1.0.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
