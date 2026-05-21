@@ -6,7 +6,7 @@ package listener
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"reflect"
@@ -48,7 +48,7 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	funcValue := reflect.ValueOf(h.fun)
 	if h.req != nil {
-		body, readErr := ioutil.ReadAll(r.Body)
+		body, readErr := io.ReadAll(r.Body)
 		if h.listen.log {
 			fmt.Printf("%s %-24s -> %s", r.Method, r.RequestURI, string(body))
 		}
@@ -76,7 +76,11 @@ func (h handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		body, err = json.Marshal(forwarder.VolumeResponse{Err: err.Error()})
+		// The outer body == nil fallback below covers the (effectively
+		// unreachable) case where this Marshal itself fails for a struct
+		// containing only a string field. Discard the err — there's nothing
+		// useful to do with it once we've decided to send a fallback body.
+		body, _ = json.Marshal(forwarder.VolumeResponse{Err: err.Error()})
 	}
 
 	if body == nil {
