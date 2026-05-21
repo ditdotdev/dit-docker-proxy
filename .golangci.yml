@@ -1,0 +1,29 @@
+# golangci-lint configuration for datadatdat-docker-proxy.
+# Mirrors the conventions used across the datadatdat ecosystem
+# (see datadatdat/datadatdat-client-go/.golangci.yml).
+version: "2"
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - misspell
+    - gocyclo
+    - goconst
+    - whitespace
+  exclusions:
+    rules:
+      # goconst flags every repeated literal in *_test.go fixtures
+      # ("foo/vol", "no such repository", etc.). Inlining keeps the test
+      # tables readable; suppress goconst on test files.
+      - path: _test\.go$
+        linters:
+          - goconst
