@@ -3,7 +3,10 @@
 #
 
 #
-# When a tag is pushed, build and upload the binary to GitHub releases.
+# When a tag is pushed, build the binary, attach it to the release, and
+# publish (remove draft status). Mirrors the convention used in
+# datadatdat-client-go's release workflow — see that repo for the
+# reference implementation.
 #
 name: Release
 
@@ -25,48 +28,68 @@ jobs:
         run: git config --global url."https://${{ secrets.GO_MODULES_TOKEN }}@github.com/".insteadOf "https://github.com/"
         env:
           GO_MODULES_TOKEN: ${{ secrets.GO_MODULES_TOKEN }}
+
       - name: Get or Create Draft Release
         id: draft_release
         run: |
           TAG_NAME=${GITHUB_REF#refs/tags/}
           echo "Looking for draft release with tag: $TAG_NAME"
 
-          # Try to find existing draft release for this tag
-          UPLOAD_URL=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
+          # Try to find existing draft release for this tag (release-drafter
+          # populates one on every PR merge).
+          RELEASE_ID=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | \
-            jq -rc --arg tag "$TAG_NAME" '.[] | select(.draft and .tag_name == $tag) | .upload_url')
+            jq -rc --arg tag "$TAG_NAME" '.[] | select(.draft and .tag_name == $tag) | .id')
 
-          if [ "$UPLOAD_URL" != "null" ] && [ -n "$UPLOAD_URL" ]; then
-            echo "Found existing draft release"
-            echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+          if [ "$RELEASE_ID" != "null" ] && [ -n "$RELEASE_ID" ]; then
+            echo "Found existing draft release: $RELEASE_ID"
+            echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
           else
             echo "No draft release found for tag $TAG_NAME, creating one..."
             RESPONSE=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
               -X POST "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" \
-              -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$TAG_NAME\",\"body\":\"Release $TAG_NAME\",\"draft\":false}")
+              -d "{\"tag_name\":\"$TAG_NAME\",\"name\":\"$TAG_NAME\",\"body\":\"Release $TAG_NAME\",\"draft\":true}")
 
-            UPLOAD_URL=$(echo "$RESPONSE" | jq -rc '.upload_url')
-            echo "Created draft release with upload_url: $UPLOAD_URL"
-            echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
+            RELEASE_ID=$(echo "$RESPONSE" | jq -rc '.id')
+            echo "Created draft release with ID: $RELEASE_ID"
+            echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build
         run: |
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o docker-volume-proxy ./cmd/docker-volume-proxy
           ls -la docker-volume-proxy
         env:
           GOPRIVATE: github.com/datadatdat/*
+
       - name: Test
         run: go test ./...
         env:
           GOPRIVATE: github.com/datadatdat/*
+
+      # Use `gh release upload` instead of the deprecated
+      # actions/upload-release-asset@v1 (EOL since 2021). --clobber
+      # replaces any partial upload from a prior failed attempt on the
+      # same tag, so reruns are safe.
       - name: Upload Artifact to GitHub Release
-        uses: actions/upload-release-asset@v1
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          gh release upload "$TAG_NAME" ./docker-volume-proxy --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Mirror the publish step from datadatdat-client-go's release.yml.
+      # Without this the release stays in draft state and someone has to
+      # manually `gh release edit --draft=false` after every tag.
+      - name: Publish Release
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          RELEASE_ID="${{ steps.draft_release.outputs.release_id }}"
+          echo "Publishing release $RELEASE_ID for tag $TAG_NAME"
+          curl -sH "Authorization: token $GITHUB_TOKEN" \
+            -X PATCH "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" \
+            -d "{\"draft\":false}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.draft_release.outputs.upload_url }}
-          asset_path: ./docker-volume-proxy
-          asset_name: docker-volume-proxy
-          asset_content_type: application/octet-stream
