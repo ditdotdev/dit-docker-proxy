@@ -34,7 +34,26 @@ jobs:
       - name: Build
         run: go build -v ./cmd/docker-volume-proxy
       - name: Test
-        run: go test -v ./...
+        run: go test -v -coverprofile=coverage.out ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          file: ./coverage.out
+        continue-on-error: true
+      - name: Check formatting
+        run: |
+          if [ -n "$(gofmt -s -l .)" ]; then
+            echo "The following files are not formatted:"
+            gofmt -s -l .
+            exit 1
+          fi
+      - name: Run go vet
+        run: go vet ./...
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+          args: --timeout=5m
       - name: Run Go security scanner (gosec)
         run: |
           go install github.com/securego/gosec/v2/cmd/gosec@latest
