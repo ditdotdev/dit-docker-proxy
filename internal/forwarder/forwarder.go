@@ -55,25 +55,30 @@ func getErrorString(err error) string {
 	return err.Error()
 }
 
+// Underscore is the canonical separator (works on every platform Docker
+// supports); slash is the older form we still accept for back-compat.
+// Both regexes use a greedy second group so volume names with additional
+// underscores (e.g. "my_repo_my_vol" → repo="my", vol="repo_my_vol")
+// don't fall through to the error path. Repository names containing the
+// separator are not supported — we always split on the first occurrence.
+var (
+	volumeNameUnderscoreRE = regexp.MustCompile(`^([^_]+)_(.+)$`)
+	volumeNameSlashRE      = regexp.MustCompile(`^([^/]+)/(.+)$`)
+)
+
 /*
  * Converts a docker volume name (repo_vol) to a (repo, volume) tuple for use with the Datadatdat API.
  * Uses underscore format for universal compatibility, with backward compatibility for existing slash format.
  */
 func parseVolumeName(volumeName string) (string, string, error) {
 	// Try underscore format first (new standard)
-	re := regexp.MustCompile(`^([^_]+)_([^_]+)$`)
-	match := re.FindStringSubmatch(volumeName)
-	if len(match) == 3 {
+	if match := volumeNameUnderscoreRE.FindStringSubmatch(volumeName); len(match) == 3 {
 		return match[1], match[2], nil
 	}
-	
 	// Fall back to slash format for backward compatibility
-	re = regexp.MustCompile(`^([^/]+)/([^/]+)$`)
-	match = re.FindStringSubmatch(volumeName)
-	if len(match) == 3 {
+	if match := volumeNameSlashRE.FindStringSubmatch(volumeName); len(match) == 3 {
 		return match[1], match[2], nil
 	}
-	
 	return "", "", errors.New("volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
