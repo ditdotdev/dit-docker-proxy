@@ -5,13 +5,16 @@
 package listener
 
 import (
+	"context"
 	"errors"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"net/http"
 	"net/http/httptest"
@@ -255,6 +258,61 @@ func TestListenSuccessAndServe(t *testing.T) {
 		_, statErr := os.Stat(sockPath)
 		return statErr == nil
 	}, 2*1e9, 50*1e6, "socket file did not appear")
+}
+
+// TestListenServeRealUnixSocket exercises the full wire path: bind a real
+// Unix socket via Listen(), then issue an HTTP request through a client
+// configured to dial that socket. This covers everything the other
+// listener tests skip — net.Listen, the http.Serve loop, and the actual
+// JSON framing over the socket. The other tests build *http.Request
+// objects and call handler.ServeHTTP directly against a recorder, which
+// is fine for handler logic but doesn't catch wire-format regressions.
+func TestListenServeRealUnixSocket(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix domain sockets not reliably available on Windows")
+	}
+
+	f := new(MockForwarder)
+	f.On("PluginActivate").Return(forwarder.PluginDescription{Implements: []string{"VolumeDriver"}})
+
+	sockDir, err := os.MkdirTemp("", "listener-wire-test")
+	assert.NoError(t, err)
+	defer func() { _ = os.RemoveAll(sockDir) }()
+
+	sockPath := filepath.Join(sockDir, "test.sock")
+	l := New(f, sockPath)
+	go func() { _ = l.Listen() }()
+
+	// Block until the socket is bound.
+	assert.Eventually(t, func() bool {
+		_, statErr := os.Stat(sockPath)
+		return statErr == nil
+	}, 2*time.Second, 50*time.Millisecond, "socket file did not appear")
+
+	// HTTP client that dials the Unix socket on every request. The host
+	// in the URL is ignored by the custom DialContext.
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, _ string, _ string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, "unix", sockPath)
+			},
+		},
+		Timeout: 2 * time.Second,
+	}
+
+	resp, err := client.Post("http://unix/Plugin.Activate", "application/json", nil)
+	if !assert.NoError(t, err) {
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+	body, err := io.ReadAll(resp.Body)
+	assert.NoError(t, err)
+	assert.Contains(t, string(body), "\"VolumeDriver\"")
+	f.AssertExpectations(t)
 }
 
 func TestServeHTTPWithLoggingEnabled(t *testing.T) {
