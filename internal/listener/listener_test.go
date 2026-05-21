@@ -240,7 +240,7 @@ func TestListenSuccessAndServe(t *testing.T) {
 
 	sockDir, err := os.MkdirTemp("", "listener-test")
 	assert.NoError(t, err)
-	defer os.RemoveAll(sockDir)
+	defer func() { _ = os.RemoveAll(sockDir) }()
 
 	sockPath := filepath.Join(sockDir, "test.sock")
 	l := New(f, sockPath)
