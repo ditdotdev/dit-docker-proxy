@@ -137,6 +137,50 @@ func TestGetVolumeBadName(t *testing.T) {
 	assert.Equal(t, resp.Err, "volume name must be of the form <repository>_<volume> or <repository>/<volume>")
 }
 
+// Volume names with additional underscores after the separator (e.g. created
+// by upstream tooling that uses underscores inside the volume name itself)
+// must split on the FIRST underscore and treat the rest as the volume name.
+// Pre-fix, the regex used `[^_]+` on both groups and these names returned
+// "volume name must be of the form..." instead.
+func TestGetVolumeNameWithMultipleUnderscores(t *testing.T) {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		assert.Equal(t, r.RequestURI, "/v1/repositories/repo/volumes/my_vol")
+		_, _ = w.Write([]byte("{\"name\":\"my_vol\",\"properties\":{},\"config\":{\"mountpoint\":\"/my_vol\"}}"))
+	})
+	f, teardown := testForwarder(h)
+	defer teardown()
+
+	resp := f.GetVolume(VolumeRequest{Name: "repo_my_vol"})
+	if assert.Empty(t, resp.Err) {
+		assert.Equal(t, resp.Volume.Name, "repo_my_vol")
+		assert.Equal(t, resp.Volume.Mountpoint, "/my_vol")
+	}
+}
+
+// parseVolumeName direct test for the multi-separator case in the
+// back-compat slash form. The slash form encodes the volume-name slash
+// as %2F when the URL is built; we don't assert on the wire-level
+// encoding here, just that the split itself is correct.
+func TestParseVolumeNameSlashWithExtraSegments(t *testing.T) {
+	repo, vol, err := parseVolumeName("repo/sub/vol")
+	assert.NoError(t, err)
+	assert.Equal(t, "repo", repo)
+	assert.Equal(t, "sub/vol", vol)
+}
+
+func TestParseVolumeNameUnderscoreWithExtraSegments(t *testing.T) {
+	repo, vol, err := parseVolumeName("repo_sub_vol")
+	assert.NoError(t, err)
+	assert.Equal(t, "repo", repo)
+	assert.Equal(t, "sub_vol", vol)
+}
+
+func TestParseVolumeNameNoSeparator(t *testing.T) {
+	_, _, err := parseVolumeName("just-a-name")
+	assert.Error(t, err)
+}
+
 func TestGetVolumeError(t *testing.T) {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

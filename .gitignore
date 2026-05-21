@@ -9,6 +9,7 @@
 
 # Build output
 /docker-volume-proxy
+/docker-volume-proxy.exe
 
 # Test coverage artifacts
 coverage.out
