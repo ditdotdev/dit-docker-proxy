@@ -14,3 +14,7 @@
 # Test coverage artifacts
 coverage.out
 coverage.html
+
+# Coverage profiles from local test runs (Go default name varies
+# between `cov.out`, `cov-utils.out`, etc. depending on the recipe)
+cov*.out
