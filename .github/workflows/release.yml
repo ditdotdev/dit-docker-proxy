@@ -47,10 +47,12 @@ jobs:
           echo "Looking for draft release with tag: $TAG_NAME"
 
           # Try to find existing draft release for this tag (release-drafter
-          # populates one on every PR merge).
+          # populates one on every PR merge, and can leave more than one
+          # draft for the same tag). head -1 keeps RELEASE_ID a single line
+          # so the GITHUB_OUTPUT write stays valid key=value format.
           RELEASE_ID=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
             "https://api.github.com/repos/$GITHUB_REPOSITORY/releases" | \
-            jq -rc --arg tag "$TAG_NAME" '.[] | select(.draft and .tag_name == $tag) | .id')
+            jq -rc --arg tag "$TAG_NAME" '.[] | select(.draft and .tag_name == $tag) | .id' | head -1)
 
           if [ "$RELEASE_ID" != "null" ] && [ -n "$RELEASE_ID" ]; then
             echo "Found existing draft release: $RELEASE_ID"
