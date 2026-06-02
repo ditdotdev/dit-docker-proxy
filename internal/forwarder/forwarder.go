@@ -1,5 +1,5 @@
 /*
- * Copyright Datadatdat.
+ * Copyright Dit.
  */
 
 package forwarder
@@ -8,14 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	datadatdat "github.com/datadatdat/datadatdat-client-go"
+	dit "github.com/ditdotdev/dit-client-go"
 	"net/http"
 	"regexp"
 )
 
 /*
  * The forwarder class is responsible for taking docker requests as input, and making the appropriate calls to an
- * instance of datadatdat-server. The inputs to these functions are all structures defined in this package. The
+ * instance of dit-server. The inputs to these functions are all structures defined in this package. The
  * responsibility of listening on the appropriate docker socket, marshalling to and from JSON, etc rests with
  * other portions of the package.
  */
@@ -33,22 +33,22 @@ type Forwarder interface {
 }
 
 type forwarder struct {
-	client *datadatdat.APIClient
+	client *dit.APIClient
 	ctx    context.Context
 }
 
 /*
- * Converts an error object into an "Err" string to return to consumers. If this is a datadatdat-server API error, then
+ * Converts an error object into an "Err" string to return to consumers. If this is a dit-server API error, then
  * we return the message field. Otherwise, we return the default error string.
  *
- * Note: as of datadatdat-client-go v1.11.0 the generated code returns *GenericOpenAPIError
+ * Note: as of dit-client-go v1.11.0 the generated code returns *GenericOpenAPIError
  * (pointer), not the value type. The pointer assertion is load-bearing — a value assertion
  * silently fails and every server-side error degrades from "no such repository" to bare HTTP
  * status text.
  */
 func getErrorString(err error) string {
-	if openApiErr, ok := err.(*datadatdat.GenericOpenAPIError); ok {
-		if apiErr, ok := openApiErr.Model().(datadatdat.ApiError); ok {
+	if openApiErr, ok := err.(*dit.GenericOpenAPIError); ok {
+		if apiErr, ok := openApiErr.Model().(dit.ApiError); ok {
 			return apiErr.Message
 		}
 	}
@@ -67,7 +67,7 @@ var (
 )
 
 /*
- * Converts a docker volume name (repo_vol) to a (repo, volume) tuple for use with the Datadatdat API.
+ * Converts a docker volume name (repo_vol) to a (repo, volume) tuple for use with the Dit API.
  * Uses underscore format for universal compatibility, with backward compatibility for existing slash format.
  */
 func parseVolumeName(volumeName string) (string, string, error) {
@@ -94,11 +94,11 @@ func standardResponse(err error) VolumeResponse {
 }
 
 /*
- * Converts from a Datadatdat volume to a Docker volume. The main difference is that the repository name is part of the
+ * Converts from a Dit volume to a Docker volume. The main difference is that the repository name is part of the
  * volume name. The mountpoint is also pulled out of the properties to a first class response.
  * Uses underscore format for universal compatibility across all platforms.
  */
-func convertVolume(repo string, vol datadatdat.Volume) Volume {
+func convertVolume(repo string, vol dit.Volume) Volume {
 	// vol.Config is an optional map[string]interface{}; defensive comma-ok
 	// because the v1.11 generator emits it as omitempty and the server may
 	// elide it entirely on List responses. A bare type assertion would
@@ -205,7 +205,7 @@ func (p forwarder) CreateVolume(request CreateVolumeRequest) VolumeResponse {
 		if request.Opts != nil {
 			properties = request.Opts
 		}
-		vol := datadatdat.Volume{
+		vol := dit.Volume{
 			Name:       volumeName,
 			Properties: properties,
 		}
@@ -217,7 +217,7 @@ func (p forwarder) CreateVolume(request CreateVolumeRequest) VolumeResponse {
 /*
  * /VolumeDriver.Remove
  *
- * Delete a volume. This simply parses the name to the native Datadatdat form, and marshals any errors in the process.
+ * Delete a volume. This simply parses the name to the native Dit form, and marshals any errors in the process.
  */
 func (p forwarder) RemoveVolume(request VolumeRequest) VolumeResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
@@ -232,12 +232,12 @@ func (p forwarder) RemoveVolume(request VolumeRequest) VolumeResponse {
 /*
  * /VolumeDriver.Mount
  *
- * Mount a volume. This is equivalent to activating a Datadatdat volume.
+ * Mount a volume. This is equivalent to activating a Dit volume.
  */
 func (p forwarder) MountVolume(request MountVolumeRequest) GetPathResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
 	if err == nil {
-		var vol *datadatdat.Volume
+		var vol *dit.Volume
 		vol, _, err = p.client.VolumesApi.GetVolume(p.ctx, repoName, volumeName).Execute()
 		if err == nil {
 			_, err = p.client.VolumesApi.ActivateVolume(p.ctx, repoName, volumeName).Execute()
@@ -256,7 +256,7 @@ func (p forwarder) MountVolume(request MountVolumeRequest) GetPathResponse {
 /*
  * /VolumeDriver.Unmount
  *
- * Unmount a volume. This is equivalent to deactivating a Datadatdat volume.
+ * Unmount a volume. This is equivalent to deactivating a Dit volume.
  */
 func (p forwarder) UnmountVolume(request MountVolumeRequest) VolumeResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
@@ -269,17 +269,17 @@ func (p forwarder) UnmountVolume(request MountVolumeRequest) VolumeResponse {
 /*
  * Public forwarder constructor. Takes a host ("localhost") and port (5001) to pass to the client.
  *
- * Note: in datadatdat-client-go v1.11.0 the Configuration.Host field is no
+ * Note: in dit-client-go v1.11.0 the Configuration.Host field is no
  * longer used to drive request URLs (that's now the Servers slice).
  * Setting Host alone silently sent every request to the default
  * http://localhost:5001 server. We override Servers[0].URL instead.
  */
 func New(host string, port int) Forwarder {
-	config := datadatdat.NewConfiguration()
-	config.Servers = datadatdat.ServerConfigurations{
+	config := dit.NewConfiguration()
+	config.Servers = dit.ServerConfigurations{
 		{URL: fmt.Sprintf("http://%s:%d", host, port)},
 	}
-	client := datadatdat.NewAPIClient(config)
+	client := dit.NewAPIClient(config)
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
@@ -287,13 +287,13 @@ func New(host string, port int) Forwarder {
 }
 
 /*
- * For use in testing, this allows the test to pass a (mock) HTTP client to the Datadatdat client in order to facilitate
+ * For use in testing, this allows the test to pass a (mock) HTTP client to the Dit client in order to facilitate
  * testing.
  */
 func NewClient(httpClient *http.Client) Forwarder {
-	config := datadatdat.NewConfiguration()
+	config := dit.NewConfiguration()
 	config.HTTPClient = httpClient
-	client := datadatdat.NewAPIClient(config)
+	client := dit.NewAPIClient(config)
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),

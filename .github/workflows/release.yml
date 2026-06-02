@@ -1,11 +1,11 @@
 #
-# Copyright Datadatdat.
+# Copyright Dit.
 #
 
 #
 # When a tag is pushed, build the binary, attach it to the release, and
 # publish (remove draft status). Mirrors the convention used in
-# datadatdat-client-go's release workflow — see that repo for the
+# dit-client-go's release workflow — see that repo for the
 # reference implementation.
 #
 name: Release
@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   health:
-    uses: datadatdat/.github/.github/workflows/repo-health.yml@master
+    uses: ditdotdev/.github/.github/workflows/repo-health.yml@master
     with:
       language: go
       coverage-floor: 90
@@ -75,12 +75,12 @@ jobs:
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o docker-volume-proxy ./cmd/docker-volume-proxy
           ls -la docker-volume-proxy
         env:
-          GOPRIVATE: github.com/datadatdat/*
+          GOPRIVATE: github.com/ditdotdev/*
 
       - name: Test
         run: go test ./...
         env:
-          GOPRIVATE: github.com/datadatdat/*
+          GOPRIVATE: github.com/ditdotdev/*
 
       # Use `gh release upload` instead of the deprecated
       # actions/upload-release-asset@v1 (EOL since 2021). --clobber
@@ -93,7 +93,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Mirror the publish step from datadatdat-client-go's release.yml.
+      # Mirror the publish step from dit-client-go's release.yml.
       # Without this the release stays in draft state and someone has to
       # manually `gh release edit --draft=false` after every tag.
       - name: Publish Release

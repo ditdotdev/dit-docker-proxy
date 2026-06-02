@@ -1,7 +1,7 @@
-github.com/datadatdat/datadatdat-client-go v1.9.2 h1:wr4EU5bVpzb1fIpnTxiKu5hmS2WjZOtcs5TNqx+NceM=
-github.com/datadatdat/datadatdat-client-go v1.9.2/go.mod h1:nqCvzqOLNNXYqm1fGqU9zW6yPVvfVxn/XlWOT/VqnT4=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/ditdotdev/dit-client-go v1.9.3 h1:xMJC2lIfj2AAHzaRAN30Wldps4VGKPBOrOPD6y9V3wE=
+github.com/ditdotdev/dit-client-go v1.9.3/go.mod h1:ZDBJDo0hv5qr/oEdsXPlCNxjTogbWagCR6sflmyEkmA=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.5.3 h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=

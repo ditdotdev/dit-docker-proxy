@@ -1,12 +1,12 @@
 # Project Development
 
 For general information about contributing changes, see the
-[Contributor Guidelines](https://github.com/datadatdat/.github/blob/master/CONTRIBUTING.md).
+[Contributor Guidelines](https://github.com/ditdotdev/.github/blob/master/CONTRIBUTING.md).
 
 ## How it Works
 
 The proxy consists of two main pieces: the forwarder and the listener. The forwarder takes inputs in the form of
-the docker API, invokes the appropriate datadatdat method, and returns back docker specific objects. The listener is
+the docker API, invokes the appropriate dit method, and returns back docker specific objects. The listener is
 responsible for listening on the appropriate Unix domain socket, routing requests,and marshaling / unmarshaling
 data.
 
@@ -25,5 +25,5 @@ To test the project, run `go test ./...`. This will run all tests.
 ## Releasing
 
 To release, create a tag and push it. This will build the resulting go binary for Linux (the runtime for the
-datadatdat-server container) and upload it as an artifact to the draft release. Release notes are maintained on each
+dit-server container) and upload it as an artifact to the draft release. Release notes are maintained on each
 push through the release drafter action.
