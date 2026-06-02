@@ -1,5 +1,5 @@
 /*
- * Copyright Datadatdat.
+ * Copyright Dit.
  */
 
 package listener
@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
+	"github.com/ditdotdev/dit-docker-proxy/internal/forwarder"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
