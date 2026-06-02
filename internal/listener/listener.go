@@ -1,5 +1,5 @@
 /*
- * Copyright Datadatdat.
+ * Copyright Dit.
  */
 package listener
 
@@ -11,12 +11,12 @@ import (
 	"net/http"
 	"reflect"
 
-	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
+	"github.com/ditdotdev/dit-docker-proxy/internal/forwarder"
 )
 
 /*
  * The listener is responsible for listening on a Unix Domain Socket for docker requests, marshaling data to and from
- * JSON, and invoking the appropriate methods of the forwarder to then make calls to datadatdat-server. Because this is so
+ * JSON, and invoking the appropriate methods of the forwarder to then make calls to dit-server. Because this is so
  * generic, we are able to implement a generic interposition layer and use reflection to do all the work.
  */
 

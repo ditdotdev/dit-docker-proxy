@@ -1,6 +1,6 @@
-# golangci-lint configuration for datadatdat-docker-proxy.
-# Mirrors the conventions used across the datadatdat ecosystem
-# (see datadatdat/datadatdat-client-go/.golangci.yml).
+# golangci-lint configuration for dit-docker-proxy.
+# Mirrors the conventions used across the dit ecosystem
+# (see ditdotdev/dit-client-go/.golangci.yml).
 version: "2"
 
 run:

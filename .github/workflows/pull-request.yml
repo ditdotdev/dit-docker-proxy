@@ -1,5 +1,5 @@
 #
-# Copyright Datadatdat.
+# Copyright Dit.
 #
 
 #
@@ -27,10 +27,10 @@ jobs:
           echo "https://x-access-token:${{ secrets.GO_MODULES_TOKEN }}@github.com" > ~/.git-credentials
       - name: Configure Go for private modules
         run: |
-          go env -w GOPRIVATE=github.com/datadatdat/*
+          go env -w GOPRIVATE=github.com/ditdotdev/*
           go env -w GOPROXY=direct
         env:
-          GOPRIVATE: github.com/datadatdat/*
+          GOPRIVATE: github.com/ditdotdev/*
       - name: Build
         run: go build -v ./cmd/docker-volume-proxy
       - name: Test

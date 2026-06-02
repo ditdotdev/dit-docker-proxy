@@ -1,5 +1,5 @@
 /*
- * Copyright Datadatdat.
+ * Copyright Dit.
  */
 
 package main
@@ -10,8 +10,8 @@ import (
 	"io"
 	"os"
 
-	"github.com/datadatdat/datadatdat-docker-proxy/internal/forwarder"
-	"github.com/datadatdat/datadatdat-docker-proxy/internal/listener"
+	"github.com/ditdotdev/dit-docker-proxy/internal/forwarder"
+	"github.com/ditdotdev/dit-docker-proxy/internal/listener"
 )
 
 func main() {
