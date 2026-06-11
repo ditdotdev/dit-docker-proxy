@@ -1,7 +1,7 @@
 module github.com/ditdotdev/dit-docker-proxy
 
 require (
-	github.com/ditdotdev/dit-client-go v1.9.5
+	github.com/ditdotdev/dit-client-go v1.9.6
 	github.com/stretchr/testify v1.11.1
 )
 
