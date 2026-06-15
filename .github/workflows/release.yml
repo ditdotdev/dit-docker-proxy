@@ -82,16 +82,31 @@ jobs:
         env:
           GOPRIVATE: github.com/ditdotdev/*
 
-      # Use `gh release upload` instead of the deprecated
-      # actions/upload-release-asset@v1 (EOL since 2021). --clobber
-      # replaces any partial upload from a prior failed attempt on the
-      # same tag, so reruns are safe.
+      # Upload to the exact release_id captured above instead of letting
+      # `gh release upload <tag>` re-resolve the tag. Tag resolution can pick
+      # a different release than the one we publish if duplicate drafts ever
+      # exist for the same tag, which would publish an empty release while the
+      # binary lands on the other one. Targeting the id keeps upload and
+      # publish on the same release. The pre-delete makes reruns idempotent —
+      # the assets API rejects a second upload of the same name with 422.
       - name: Upload Artifact to GitHub Release
         run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          gh release upload "$TAG_NAME" ./docker-volume-proxy --clobber
+          RELEASE_ID="${{ steps.draft_release.outputs.release_id }}"
+          EXISTING=$(curl -sH "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets" | \
+            jq -rc '.[] | select(.name == "docker-volume-proxy") | .id')
+          for id in $EXISTING; do
+            echo "Removing prior asset $id"
+            curl -sH "Authorization: token $GITHUB_TOKEN" \
+              -X DELETE "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$id"
+          done
+          echo "Uploading docker-volume-proxy to release $RELEASE_ID"
+          curl -sH "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @docker-volume-proxy \
+            "https://uploads.github.com/repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID/assets?name=docker-volume-proxy"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Mirror the publish step from dit-client-go's release.yml.
       # Without this the release stays in draft state and someone has to
