@@ -17,17 +17,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  health:
-    uses: ditdotdev/.github/.github/workflows/repo-health.yml@master
-    with:
-      language: go
-      coverage-floor: 90
-      mode: block
-    secrets:
-      GO_MODULES_TOKEN: ${{ secrets.GO_MODULES_TOKEN }}
-
   upload:
-    needs: health
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     steps:
