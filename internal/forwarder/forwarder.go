@@ -10,6 +10,7 @@ import (
 	dit "github.com/ditdotdev/dit-client-go"
 	"net/http"
 	"regexp"
+	"sync"
 )
 
 /*
@@ -34,6 +35,32 @@ type Forwarder interface {
 type forwarder struct {
 	client *dit.APIClient
 	ctx    context.Context
+	mounts *mountTable
+}
+
+/*
+ * Docker calls /VolumeDriver.Mount once per consumer of a volume and /VolumeDriver.Unmount once when that consumer
+ * is done, and it expects the driver to keep the volume mounted until the last consumer has gone (this is what
+ * moby's own "local" driver does, and it counts plainly rather than by ID because `docker cp` and `docker export`
+ * against a running container reuse the container's own mount ID). Without this table a `docker cp` against a
+ * running repository re-ran `mount` on an already mounted dataset, which fails, and its Unmount then pulled the
+ * dataset out from under the running container (ditdotdev/dit#260).
+ *
+ * The table is keyed by the Docker volume name. The mountpoint is remembered on first activation so that further
+ * references do not need a round trip to the server.
+ */
+type mountTable struct {
+	mu      sync.Mutex
+	entries map[string]*mountEntry
+}
+
+type mountEntry struct {
+	references int
+	mountpoint string
+}
+
+func newMountTable() *mountTable {
+	return &mountTable{entries: map[string]*mountEntry{}}
 }
 
 /*
@@ -231,37 +258,66 @@ func (p forwarder) RemoveVolume(request VolumeRequest) VolumeResponse {
 /*
  * /VolumeDriver.Mount
  *
- * Mount a volume. This is equivalent to activating a Dit volume.
+ * Mount a volume. The first reference activates the Dit volume; further references (a `docker cp` against a
+ * running container, for example) just bump the count and return the mountpoint recorded at activation. The table
+ * lock is held across the server calls so that concurrent first references cannot both activate.
  */
 func (p forwarder) MountVolume(request MountVolumeRequest) GetPathResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
-	if err == nil {
-		var vol *dit.Volume
-		vol, _, err = p.client.VolumesApi.GetVolume(p.ctx, repoName, volumeName).Execute()
-		if err == nil {
-			_, err = p.client.VolumesApi.ActivateVolume(p.ctx, repoName, volumeName).Execute()
-		}
-		if err == nil {
-			// vol is non-nil when err == nil (v1.11 client invariant).
-			// Defensive comma-ok on the map value matches convertVolume.
-			mp, _ := vol.Config["mountpoint"].(string)
-			return GetPathResponse{Mountpoint: mp}
-		}
+	if err != nil {
+		return GetPathResponse{Err: getErrorString(err)}
 	}
 
-	return GetPathResponse{Err: getErrorString(err)}
+	p.mounts.mu.Lock()
+	defer p.mounts.mu.Unlock()
+
+	if entry, ok := p.mounts.entries[request.Name]; ok && entry.references > 0 {
+		entry.references++
+		return GetPathResponse{Mountpoint: entry.mountpoint}
+	}
+
+	vol, _, err := p.client.VolumesApi.GetVolume(p.ctx, repoName, volumeName).Execute()
+	if err == nil {
+		_, err = p.client.VolumesApi.ActivateVolume(p.ctx, repoName, volumeName).Execute()
+	}
+	if err != nil {
+		return GetPathResponse{Err: getErrorString(err)}
+	}
+
+	// vol is non-nil when err == nil (v1.11 client invariant).
+	// Defensive comma-ok on the map value matches convertVolume.
+	mp, _ := vol.Config["mountpoint"].(string)
+	p.mounts.entries[request.Name] = &mountEntry{references: 1, mountpoint: mp}
+	return GetPathResponse{Mountpoint: mp}
 }
 
 /*
  * /VolumeDriver.Unmount
  *
- * Unmount a volume. This is equivalent to deactivating a Dit volume.
+ * Unmount a volume. Drops one reference and deactivates the Dit volume only when no references remain. An Unmount
+ * the table knows nothing about (for example after the plugin restarted underneath a running container) still
+ * deactivates, as it always did, so that a volume cannot get stuck mounted. The reference is dropped even if the
+ * deactivation fails, matching moby's local driver: Docker reports the error, and a retried Unmount runs the
+ * deactivation again instead of returning a success that did not happen.
  */
 func (p forwarder) UnmountVolume(request MountVolumeRequest) VolumeResponse {
 	repoName, volumeName, err := parseVolumeName(request.Name)
-	if err == nil {
-		_, err = p.client.VolumesApi.DeactivateVolume(p.ctx, repoName, volumeName).Execute()
+	if err != nil {
+		return standardResponse(err)
 	}
+
+	p.mounts.mu.Lock()
+	defer p.mounts.mu.Unlock()
+
+	if entry, ok := p.mounts.entries[request.Name]; ok && entry.references > 0 {
+		entry.references--
+		if entry.references > 0 {
+			return VolumeResponse{}
+		}
+		delete(p.mounts.entries, request.Name)
+	}
+
+	_, err = p.client.VolumesApi.DeactivateVolume(p.ctx, repoName, volumeName).Execute()
 	return standardResponse(err)
 }
 
@@ -282,6 +338,7 @@ func New(host string, port int) Forwarder {
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
+		mounts: newMountTable(),
 	}
 }
 
@@ -296,5 +353,6 @@ func NewClient(httpClient *http.Client) Forwarder {
 	return forwarder{
 		client: client,
 		ctx:    context.Background(),
+		mounts: newMountTable(),
 	}
 }
