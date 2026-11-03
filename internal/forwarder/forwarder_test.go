@@ -396,3 +396,174 @@ func TestUnmountVolumeError(t *testing.T) {
 	resp := f.UnmountVolume(MountVolumeRequest{Name: "foo/vol"})
 	assert.Equal(t, resp.Err, "no such repository")
 }
+
+// countingServer is a fake dit-server that answers GET volume, activate and
+// deactivate for repository "foo", counting the activate/deactivate calls so
+// tests can assert on how many times the real mount/umount would have run.
+type countingServer struct {
+	activations    int
+	deactivations  int
+	activateErr    bool
+	deactivateErr  bool
+	seenVolumePath map[string]int
+}
+
+func (c *countingServer) handler(t *testing.T) http.Handler {
+	c.seenVolumePath = map[string]int{}
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == "GET":
+			c.seenVolumePath[r.RequestURI]++
+			_, _ = w.Write([]byte("{\"name\":\"vol\",\"properties\":{},\"config\":{\"mountpoint\":\"/vol\"}}"))
+		case r.Method == "POST" && r.RequestURI == "/v1/repositories/foo/volumes/vol/activate":
+			c.activations++
+			if c.activateErr {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("{\"message\":\"mount failed\"}"))
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == "POST" && r.RequestURI == "/v1/repositories/foo/volumes/vol/deactivate":
+			c.deactivations++
+			if c.deactivateErr {
+				w.WriteHeader(http.StatusInternalServerError)
+				_, _ = w.Write([]byte("{\"message\":\"target is busy\"}"))
+				return
+			}
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == "POST" && r.RequestURI == "/v1/repositories/foo/volumes/other/activate":
+			w.WriteHeader(http.StatusNoContent)
+		case r.Method == "POST" && r.RequestURI == "/v1/repositories/foo/volumes/other/deactivate":
+			w.WriteHeader(http.StatusNoContent)
+		default:
+			t.Errorf("unexpected request %s %s", r.Method, r.RequestURI)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	})
+}
+
+// Docker asks the driver to Mount a volume once per consumer: once when the
+// container starts and again for every `docker cp` / `docker export` against
+// it (reusing the container's mount ID), and it expects the driver to count
+// those references (see moby's volume/local driver). Without counting, the
+// second Mount re-runs `mount` on an already mounted dataset and fails
+// (ditdotdev/dit#260).
+func TestMountVolumeSecondReferenceDoesNotActivateAgain(t *testing.T) {
+	srv := &countingServer{}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	first := f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"})
+	second := f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"})
+
+	assert.Empty(t, first.Err)
+	assert.Empty(t, second.Err)
+	assert.Equal(t, "/vol", first.Mountpoint)
+	assert.Equal(t, "/vol", second.Mountpoint)
+	assert.Equal(t, 1, srv.activations)
+}
+
+// The Unmount that follows a `docker cp` must not deactivate a volume the
+// running container still uses; only the last reference deactivates.
+func TestUnmountVolumeDeactivatesOnLastReferenceOnly(t *testing.T) {
+	srv := &countingServer{}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"}).Err)
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"}).Err)
+
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"}).Err)
+	assert.Equal(t, 0, srv.deactivations, "first unmount must leave the volume mounted for the container")
+
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"}).Err)
+	assert.Equal(t, 1, srv.deactivations)
+
+	// A fresh mount after the last unmount activates again.
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "container"}).Err)
+	assert.Equal(t, 2, srv.activations)
+}
+
+// Volumes are counted independently of each other.
+func TestMountVolumeReferencesAreCountedPerVolume(t *testing.T) {
+	srv := &countingServer{}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_other", ID: "a"}).Err)
+
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_other", ID: "a"}).Err)
+	assert.Equal(t, 0, srv.deactivations, "unmounting another volume must not touch foo_vol")
+
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Equal(t, 1, srv.deactivations)
+}
+
+// A failed activation must not leave a dangling reference, otherwise the
+// next Mount would report success without the dataset being mounted.
+func TestMountVolumeFailureHoldsNoReference(t *testing.T) {
+	srv := &countingServer{activateErr: true}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	assert.Equal(t, "mount failed", f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+
+	srv.activateErr = false
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Equal(t, 2, srv.activations)
+
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Equal(t, 1, srv.deactivations)
+}
+
+// An Unmount the plugin has no reference for (for example after the plugin
+// restarted while a container was running) still forwards the deactivate,
+// as it always did, so volumes cannot get stuck mounted.
+func TestUnmountVolumeWithoutReferenceStillDeactivates(t *testing.T) {
+	srv := &countingServer{}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Equal(t, 1, srv.deactivations)
+}
+
+// A deactivate failure is reported to Docker and the reference is dropped
+// anyway (as moby's local driver does), so a retried Unmount runs umount
+// again instead of silently returning success.
+func TestUnmountVolumeDeactivateErrorIsRetriedOnNextUnmount(t *testing.T) {
+	srv := &countingServer{deactivateErr: true}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	assert.Empty(t, f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Equal(t, "target is busy", f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+
+	srv.deactivateErr = false
+	assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	assert.Equal(t, 2, srv.deactivations)
+}
+
+// Concurrent Mount calls for the same volume must activate it exactly once.
+func TestMountVolumeConcurrentReferences(t *testing.T) {
+	srv := &countingServer{}
+	f, teardown := testForwarder(srv.handler(t))
+	defer teardown()
+
+	const n = 20
+	done := make(chan GetPathResponse, n)
+	for i := 0; i < n; i++ {
+		go func() { done <- f.MountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}) }()
+	}
+	for i := 0; i < n; i++ {
+		assert.Empty(t, (<-done).Err)
+	}
+	assert.Equal(t, 1, srv.activations)
+
+	for i := 0; i < n; i++ {
+		assert.Empty(t, f.UnmountVolume(MountVolumeRequest{Name: "foo_vol", ID: "a"}).Err)
+	}
+	assert.Equal(t, 1, srv.deactivations)
+}
