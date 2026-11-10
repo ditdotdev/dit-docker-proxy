@@ -1,5 +1,5 @@
-github.com/ditdotdev/dit-client-go v1.10.3 h1:f+YrehWjr4BfmXEjQxXbg8Q8pnY4xaAiGd78IqNTdkw=
-github.com/ditdotdev/dit-client-go v1.10.3/go.mod h1:WPtJR1gp5qlawo6TyjzIkdLbXRFHMUmvwcFR66Kbug4=
+github.com/ditdotdev/dit-client-go v1.10.4 h1:AVnd5HZ+tf3us+6LsTL5a0gwuh/uxxkNaNnoUcFPCjQ=
+github.com/ditdotdev/dit-client-go v1.10.4/go.mod h1:WPtJR1gp5qlawo6TyjzIkdLbXRFHMUmvwcFR66Kbug4=
 github.com/stretchr/objx v0.5.3 h1:jmXUvGomnU1o3W/V5h2VEradbpJDwGrzugQQvL0POH4=
 github.com/stretchr/objx v0.5.3/go.mod h1:rDQraq+vQZU7Fde9LOZLr8Tax6zZvy4kuNKF+QYS+U0=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
